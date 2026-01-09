@@ -341,6 +341,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>oh-my-opencode</strong> - OpenCode plugin - custom agents (oracle, librarian) and enhanced features</summary>
+
+- **Source**: binary
+- **License**: unfree
+- **Homepage**: https://github.com/code-yeongyu/oh-my-opencode
+- **Usage**: `nix run github:numtide/llm-agents.nix#oh-my-opencode -- --help`
+- **Nix**: [packages/oh-my-opencode/package.nix](packages/oh-my-opencode/package.nix)
+
+</details>
+<details>
 <summary><strong>opencode</strong> - AI coding agent built for the terminal</summary>
 
 - **Source**: binary
@@ -398,6 +408,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 - **Homepage**: https://github.com/QwenLM/qwen-code
 - **Usage**: `nix run github:numtide/llm-agents.nix#qwen-code -- --help`
 - **Nix**: [packages/qwen-code/package.nix](packages/qwen-code/package.nix)
+
+</details>
+<details>
+<summary><strong>sorapec</strong> - AI-native system for spec-driven development</summary>
+
+- **Source**: unknown
+- **License**: MIT
+- **Homepage**: https://github.com/Fission-AI/Sorapec
+- **Usage**: `nix run github:numtide/llm-agents.nix#sorapec -- --help`
+- **Nix**: [packages/sorapec/package.nix](packages/sorapec/package.nix)
 
 </details>
 <details>
