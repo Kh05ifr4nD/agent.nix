@@ -11,6 +11,25 @@ auto_merge="${AUTO_MERGE:-false}"
 
 export NIX_PATH=nixpkgs=flake:nixpkgs
 
+read_smoke_packages() {
+  if [ -n "${SMOKE_PACKAGES+x}" ]; then
+    echo "${SMOKE_PACKAGES}"
+    return 0
+  fi
+
+  local file=".github/smoke-packages.txt"
+  if [ ! -f "$file" ]; then
+    return 0
+  fi
+
+  sed \
+    -e 's/#.*$//' \
+    -e 's/[[:space:]]*$//' \
+    -e '/^[[:space:]]*$/d' \
+    "$file" |
+    tr '\n' ' '
+}
+
 if [ -z "${GH_TOKEN:-}" ]; then
   echo "Error: GH_TOKEN is not set" >&2
   exit 1
@@ -88,6 +107,15 @@ package)
 flake-input)
   nix flake check --no-build --accept-flake-config
   nix build --accept-flake-config --no-link ".#checks.${system}.pkgs-formatter-check"
+
+  smoke_packages="$(read_smoke_packages)"
+  if [ -n "$smoke_packages" ]; then
+    echo "=== Smoke build (flake input update) ==="
+    echo "$smoke_packages"
+    for pkg in $smoke_packages; do
+      nix build --accept-flake-config --no-link ".#checks.${system}.pkgs-${pkg}"
+    done
+  fi
   ;;
 esac
 

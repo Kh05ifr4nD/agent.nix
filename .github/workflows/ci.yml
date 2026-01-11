@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup-nix
         with:
           github_token: ${{ github.token }}
@@ -16,3 +18,63 @@ jobs:
         run: nix flake check --no-build --accept-flake-config
       - name: Format check
         run: nix build --accept-flake-config --no-link .#checks.x86_64-linux.pkgs-formatter-check
+      - name: Detect changed packages
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          fi
+
+          if [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "No base SHA available; skipping changed-package builds."
+            echo "packages=" >> "$GITHUB_OUTPUT"
+            echo "infra_changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git diff --name-only "$base" "$head" > .github/changed-files.txt
+
+          pkgs="$(
+            sed -n 's#^packages/\\([^/]*\\)/.*#\\1#p' .github/changed-files.txt \
+              | sort -u \
+              | tr '\n' ' '
+          )"
+          echo "packages=$pkgs" >> "$GITHUB_OUTPUT"
+
+          if grep -Eq '^(flake\\.nix|flake\\.lock|devshell\\.nix|lib/|scripts/)' .github/changed-files.txt; then
+            echo "infra_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "infra_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build packages
+        if: steps.changes.outputs.packages != '' || steps.changes.outputs.infra_changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gather_pkgs() {
+            # Word-splitting is intended: the output is space-separated.
+            # shellcheck disable=SC2086
+            printf '%s\n' ${{ steps.changes.outputs.packages }}
+            if [ "${{ steps.changes.outputs.infra_changed }}" = "true" ] && [ -f .github/smoke-packages.txt ]; then
+              sed \
+                -e 's/#.*$//' \
+                -e 's/[[:space:]]*$//' \
+                -e '/^[[:space:]]*$/d' \
+                .github/smoke-packages.txt
+            fi
+          }
+
+          gather_pkgs | sort -u | while IFS= read -r pkg; do
+            [ -n "$pkg" ] || continue
+            echo "::group::Build ${pkg}"
+            nix build --accept-flake-config --no-link ".#checks.x86_64-linux.pkgs-${pkg}"
+            echo "::endgroup::"
+          done
