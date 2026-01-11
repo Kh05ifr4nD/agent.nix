@@ -1,6 +1,7 @@
-______________________________________________________________________
-
-## name: sorapec description: Spec-driven development workflow using Sorapec CLI (runs, evidence, re-entry)
+---
+name: sorapec
+description: Spec-driven development workflow using Sorapec CLI (runs, evidence, re-entry)
+---
 
 # Sorapec (Runtime Orchestration)
 

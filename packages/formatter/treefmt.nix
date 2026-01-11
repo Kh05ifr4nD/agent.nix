@@ -35,6 +35,9 @@ in
   settings.formatter.nixfmt.pipeline = "nix";
   settings.formatter.nixfmt.priority = 2;
 
+  # OpenCode skills use YAML frontmatter; keep them untouched.
+  settings.formatter.mdformat.excludes = [ ".opencode/**" ];
+
   settings.formatter.shellcheck.pipeline = "shell";
   settings.formatter.shellcheck.priority = 1;
   settings.formatter.shfmt.pipeline = "shell";
