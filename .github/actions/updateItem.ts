@@ -1,9 +1,16 @@
-type UpdateType = "package" | "flake-input";
+import { assertArray, assertRecord } from "../../scripts/updater/assert.ts";
+import {
+  type Env,
+  runCapture,
+  runCaptureChecked,
+  runChecked,
+  runStatus,
+  trimLines,
+} from "../../scripts/updater/command.ts";
+import { fileExists } from "../../scripts/updater/fs.ts";
+import { updateReadme } from "../../scripts/generatePackageDocs.ts";
 
-type RunOpts = {
-  env?: Record<string, string>;
-  cwd?: string;
-};
+type UpdateType = "package" | "flake-input";
 
 function getEnv(name: string, fallback = ""): string {
   return Deno.env.get(name) ?? fallback;
@@ -11,67 +18,6 @@ function getEnv(name: string, fallback = ""): string {
 
 function hasEnv(name: string): boolean {
   return Deno.env.has(name);
-}
-
-function trimLines(text: string): string[] {
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
-async function fileExists(path: string): Promise<boolean> {
-  try {
-    await Deno.stat(path);
-    return true;
-  } catch (err) {
-    if (err instanceof Deno.errors.NotFound) return false;
-    throw err;
-  }
-}
-
-async function runStatus(
-  command: string,
-  args: string[],
-  opts: RunOpts = {},
-): Promise<number> {
-  const status = await new Deno.Command(command, {
-    args,
-    stdout: "inherit",
-    stderr: "inherit",
-    stdin: "inherit",
-    env: opts.env,
-    cwd: opts.cwd,
-  }).spawn().status;
-  return status.code;
-}
-
-async function runChecked(command: string, args: string[], opts: RunOpts = {}): Promise<void> {
-  const code = await runStatus(command, args, opts);
-  if (code !== 0) {
-    throw new Error(`Command failed (${code}): ${command} ${args.join(" ")}`);
-  }
-}
-
-async function runCapture(
-  command: string,
-  args: string[],
-  opts: RunOpts = {},
-): Promise<{ code: number; stdout: string; stderr: string }> {
-  const output = await new Deno.Command(command, {
-    args,
-    stdout: "piped",
-    stderr: "piped",
-    env: opts.env,
-    cwd: opts.cwd,
-  }).output();
-
-  const decoder = new TextDecoder();
-  return {
-    code: output.code,
-    stdout: decoder.decode(output.stdout),
-    stderr: decoder.decode(output.stderr),
-  };
 }
 
 async function readSmokePackages(): Promise<string> {
@@ -97,16 +43,15 @@ function splitLabels(labels: string): string[] {
     .filter(Boolean);
 }
 
-async function gitPorcelain(env: Record<string, string>): Promise<string> {
-  const result = await runCapture("git", ["status", "--porcelain"], { env });
-  if (result.code !== 0) throw new Error(result.stderr);
+async function gitPorcelain(env: Env): Promise<string> {
+  const result = await runCaptureChecked("git", ["status", "--porcelain"], { env });
   return result.stdout;
 }
 
 async function nixEvalPackageVersion(
   name: string,
   system: string,
-  env: Record<string, string>,
+  env: Env,
 ): Promise<string> {
   const attr = `.#packages.${system}."${name}".version`;
   const result = await runCapture("nix", ["eval", "--raw", "--impure", attr], { env });
@@ -115,32 +60,52 @@ async function nixEvalPackageVersion(
 }
 
 async function readFlakeInputRev(name: string): Promise<string> {
-  const lockData = JSON.parse(await Deno.readTextFile("flake.lock"));
-  const rev = lockData?.nodes?.[name]?.locked?.rev;
+  const lockText = await Deno.readTextFile("flake.lock");
+  const lockData: unknown = JSON.parse(lockText);
+
+  assertRecord(lockData, "flake.lock: expected object");
+  const nodes = lockData["nodes"];
+  assertRecord(nodes, "flake.lock.nodes: expected object");
+
+  const node = nodes[name];
+  if (node === null || node === undefined) return "unknown";
+  assertRecord(node, `flake.lock.nodes.${name}: expected object`);
+
+  const locked = node["locked"];
+  if (locked === null || locked === undefined) return "unknown";
+  assertRecord(locked, `flake.lock.nodes.${name}.locked: expected object`);
+
+  const rev = locked["rev"];
   if (typeof rev !== "string" || !rev) return "unknown";
   return rev.slice(0, 8);
 }
 
 async function ghPrNumberForBranch(
   branch: string,
-  env: Record<string, string>,
+  env: Env,
 ): Promise<number | null> {
-  const result = await runCapture("gh", ["pr", "list", "--head", branch, "--json", "number"], {
-    env,
-  });
-  if (result.code !== 0) {
-    throw new Error(result.stderr);
-  }
-  const parsed = JSON.parse(result.stdout);
-  if (!Array.isArray(parsed) || parsed.length === 0) return null;
-  const first = parsed[0] as { number?: number };
-  return typeof first.number === "number" ? first.number : null;
+  const result = await runCaptureChecked(
+    "gh",
+    ["pr", "list", "--head", branch, "--json", "number"],
+    {
+      env,
+    },
+  );
+
+  const parsed: unknown = JSON.parse(result.stdout);
+  assertArray(parsed, "gh pr list: expected array");
+  if (parsed.length === 0) return null;
+
+  const first = parsed[0];
+  assertRecord(first, "gh pr list[0]: expected object");
+  const number = first["number"];
+  return typeof number === "number" ? number : null;
 }
 
 async function main(): Promise<void> {
   const [typeArg, name, currentVersion] = Deno.args;
   if (!typeArg || !name || !currentVersion) {
-    throw new Error("Usage: updateItem.ts <package|flake-input> <name> <current_version>");
+    throw new Error("Usage: updateItem.ts <package|flake-input> <name> <currentVersion>");
   }
   const type = typeArg as UpdateType;
   if (type !== "package" && type !== "flake-input") {
@@ -173,23 +138,44 @@ async function main(): Promise<void> {
   console.log(`type=${type}`);
   console.log(`name=${name}`);
   console.log(`system=${system}`);
-  console.log(`current_version=${currentVersion}`);
+  console.log(`currentVersion=${currentVersion}`);
   console.log();
 
   if (type === "package") {
-    const updaterPath = `packages/${name}/update.py`;
+    const updaterPath = `packages/${name}/update.ts`;
     if (await fileExists(updaterPath)) {
       console.log(`Running ${updaterPath}`);
-      await runChecked(updaterPath, [], { env });
+      await runChecked(
+        "deno",
+        [
+          "run",
+          "--config",
+          "deno.jsonc",
+          "--allow-run",
+          "--allow-read",
+          "--allow-write",
+          "--allow-env",
+          "--allow-net",
+          updaterPath,
+        ],
+        { env },
+      );
     } else {
-      console.log(`No update.py for ${name}; running nix-update`);
-      const argsPath = `packages/${name}/nix-update-args`;
-      const extraArgs = (await fileExists(argsPath))
-        ? (await Deno.readTextFile(argsPath))
+      console.log(`No update.ts for ${name}; running nix-update`);
+      const argsPathCandidates = [
+        `packages/${name}/nixUpdateArgs`,
+        `packages/${name}/nix-update-args`,
+      ];
+
+      let extraArgs: string[] = [];
+      for (const argsPath of argsPathCandidates) {
+        if (!(await fileExists(argsPath))) continue;
+        extraArgs = (await Deno.readTextFile(argsPath))
           .split(/\r?\n/)
           .map((l) => l.replace(/#.*$/, "").trim())
-          .filter(Boolean)
-        : [];
+          .filter(Boolean);
+        break;
+      }
 
       await runChecked("nix-update", ["--flake", name, ...extraArgs], { env });
     }
@@ -207,7 +193,7 @@ async function main(): Promise<void> {
   }
 
   console.log("Regenerating README package docs (if needed)...");
-  await runChecked("./scripts/generate-package-docs.py", [], { env });
+  await updateReadme("README.md");
 
   console.log("Formatting repository...");
   await runChecked("nix", ["fmt"], { env });
@@ -229,15 +215,46 @@ async function main(): Promise<void> {
 
   console.log("=== Validation ===");
   if (type === "package") {
-    await runChecked("nix", ["build", "--accept-flake-config", "--no-link", `.#checks.${system}.pkgs-${name}`], {
+    await runChecked("nix", [
+      "build",
+      "--accept-flake-config",
+      "--no-link",
+      `.#checks.${system}.pkgs-${name}`,
+    ], {
       env,
     });
-    await runChecked("nix", ["build", "--accept-flake-config", "--no-link", `.#checks.${system}.pkgs-formatter-check`], {
+    await runChecked("nix", [
+      "build",
+      "--accept-flake-config",
+      "--no-link",
+      `.#checks.${system}.pkgs-formatter-check`,
+    ], {
+      env,
+    });
+    await runChecked("nix", [
+      "build",
+      "--accept-flake-config",
+      "--no-link",
+      `.#checks.${system}.pkgs-formatter-denoCheck`,
+    ], {
       env,
     });
   } else {
     await runChecked("nix", ["flake", "check", "--no-build", "--accept-flake-config"], { env });
-    await runChecked("nix", ["build", "--accept-flake-config", "--no-link", `.#checks.${system}.pkgs-formatter-check`], {
+    await runChecked("nix", [
+      "build",
+      "--accept-flake-config",
+      "--no-link",
+      `.#checks.${system}.pkgs-formatter-check`,
+    ], {
+      env,
+    });
+    await runChecked("nix", [
+      "build",
+      "--accept-flake-config",
+      "--no-link",
+      `.#checks.${system}.pkgs-formatter-denoCheck`,
+    ], {
       env,
     });
 
@@ -246,14 +263,21 @@ async function main(): Promise<void> {
       console.log("=== Smoke build (flake input update) ===");
       console.log(smokePackages);
       for (const pkg of smokePackages.split(/\s+/).filter(Boolean)) {
-        await runChecked("nix", ["build", "--accept-flake-config", "--no-link", `.#checks.${system}.pkgs-${pkg}`], {
+        await runChecked("nix", [
+          "build",
+          "--accept-flake-config",
+          "--no-link",
+          `.#checks.${system}.pkgs-${pkg}`,
+        ], {
           env,
         });
       }
     }
   }
 
-  const changedFiles = trimLines((await runCapture("git", ["diff", "--name-only"], { env })).stdout);
+  const changedFiles = trimLines(
+    (await runCapture("git", ["diff", "--name-only"], { env })).stdout,
+  );
   const untrackedFiles = trimLines(
     (await runCapture("git", ["ls-files", "--others", "--exclude-standard"], { env })).stdout,
   );
@@ -280,8 +304,12 @@ async function main(): Promise<void> {
   for (const file of allFiles) {
     if (!isAllowedChange(file)) {
       console.error(`Error: unexpected change outside allowed scope: ${file}`);
-      console.error(`Hint: package updates must only touch packages/${name}/** and optionally README.md`);
-      console.error("Hint: flake-input updates must only touch flake.lock and optionally README.md");
+      console.error(
+        `Hint: package updates must only touch packages/${name}/** and optionally README.md`,
+      );
+      console.error(
+        "Hint: flake-input updates must only touch flake.lock and optionally README.md",
+      );
       Deno.exit(1);
     }
   }
@@ -323,12 +351,33 @@ async function main(): Promise<void> {
   let prNumber = await ghPrNumberForBranch(branch, env);
   if (prNumber !== null) {
     console.log(`Updating existing PR #${prNumber}`);
-    await runChecked("gh", ["pr", "edit", String(prNumber), "--title", prTitle, "--body", prBody, ...labelArgs], {
+    await runChecked("gh", [
+      "pr",
+      "edit",
+      String(prNumber),
+      "--title",
+      prTitle,
+      "--body",
+      prBody,
+      ...labelArgs,
+    ], {
       env,
     });
   } else {
     console.log("Creating new PR");
-    await runChecked("gh", ["pr", "create", "--title", prTitle, "--body", prBody, "--base", "main", "--head", branch, ...labelArgs], {
+    await runChecked("gh", [
+      "pr",
+      "create",
+      "--title",
+      prTitle,
+      "--body",
+      prBody,
+      "--base",
+      "main",
+      "--head",
+      branch,
+      ...labelArgs,
+    ], {
       env,
     });
     prNumber = await ghPrNumberForBranch(branch, env);
@@ -352,4 +401,3 @@ if (import.meta.main) {
     Deno.exit(1);
   }
 }
-

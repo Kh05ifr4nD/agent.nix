@@ -14,7 +14,6 @@ pkgs.mkShellNoCC {
     pkgs.nix-update
     pkgs.nodejs
     pkgs.deno
-    pkgs.python3
 
     # Agents
     perSystem.self.opencode

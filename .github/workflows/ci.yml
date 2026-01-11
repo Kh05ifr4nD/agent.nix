@@ -18,6 +18,8 @@ jobs:
         run: nix flake check --no-build --accept-flake-config
       - name: Format check
         run: nix build --accept-flake-config --no-link .#checks.x86_64-linux.pkgs-formatter-check
+      - name: Deno scripts check
+        run: nix build --accept-flake-config --no-link .#checks.x86_64-linux.pkgs-formatter-denoCheck
       - name: Detect changed packages
         id: changes
         shell: bash

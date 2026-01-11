@@ -1,15 +1,4 @@
 { pkgs, ... }:
-let
-  mypy-check = pkgs.writeShellApplication {
-    name = "mypy-check";
-    runtimeInputs = [
-      pkgs.mypy
-      pkgs.findutils
-      pkgs.python3Packages.pyelftools
-    ];
-    text = builtins.readFile ./../../scripts/check.sh;
-  };
-in
 {
   package = pkgs.treefmt;
 
@@ -26,10 +15,6 @@ in
   programs.taplo.enable = true;
   programs.yamlfmt.enable = true;
 
-  # Python formatting and linting
-  programs.ruff-format.enable = true;
-  programs.ruff-check.enable = true;
-
   settings.formatter.deadnix.pipeline = "nix";
   settings.formatter.deadnix.priority = 1;
   settings.formatter.nixfmt.pipeline = "nix";
@@ -43,16 +28,20 @@ in
   settings.formatter.shfmt.pipeline = "shell";
   settings.formatter.shfmt.priority = 2;
 
-  settings.formatter.ruff-check.pipeline = "python";
-  settings.formatter.ruff-check.priority = 1;
-  settings.formatter.ruff-format.pipeline = "python";
-  settings.formatter.ruff-format.priority = 2;
-
-  # Custom mypy check that handles our update.py scripts correctly
-  settings.formatter.mypy-check = {
-    command = "${mypy-check}/bin/mypy-check";
-    includes = [ "*.py" ];
-    pipeline = "python";
-    priority = 3;
+  settings.formatter.denoFmt = {
+    command = "${pkgs.deno}/bin/deno";
+    options = [
+      "fmt"
+      "--config"
+      "deno.jsonc"
+    ];
+    excludes = [ ".opencode/**" ];
+    includes = [
+      "*.ts"
+      "*.json"
+      "*.jsonc"
+    ];
+    pipeline = "deno";
+    priority = 1;
   };
 }

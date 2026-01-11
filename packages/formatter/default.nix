@@ -36,6 +36,27 @@ let
         fi
         touch $out
       '';
+
+  denoCheck =
+    pkgs.runCommand "deno-check"
+      {
+        nativeBuildInputs = [
+          pkgs.deno
+        ];
+      }
+      ''
+        export HOME=$NIX_BUILD_TOP/home
+        export DENO_DIR=$NIX_BUILD_TOP/deno-dir
+
+        cp -r ${flake} source
+        cd source
+        chmod -R u+w .
+
+        deno task lint
+        deno task typecheck
+
+        touch $out
+      '';
 in
 formatter
 // {
@@ -43,6 +64,7 @@ formatter
     hideFromDocs = true;
     tests = {
       check = check;
+      denoCheck = denoCheck;
     };
   };
 }

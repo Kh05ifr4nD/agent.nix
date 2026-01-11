@@ -81,4 +81,4 @@ jobs:
           nix develop --accept-flake-config -c deno run --allow-run --allow-read --allow-write --allow-env .github/actions/updateItem.ts \
             "${{ matrix.type }}" \
             "${{ matrix.name }}" \
-            "${{ matrix.current_version }}"
+            "${{ matrix.currentVersion }}"

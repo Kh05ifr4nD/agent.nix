@@ -5,7 +5,7 @@
   pkg-config,
   libgit2,
   git,
-  python3Packages,
+  util-linux,
   flake,
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
@@ -34,12 +34,28 @@ rustPlatform.buildRustPackage (finalAttrs: {
   doInstallCheck = true;
   nativeInstallCheckInputs = [
     git
-    python3Packages.pexpect
+    util-linux
   ];
   installCheckPhase = ''
     runHook preInstallCheck
-    # tuicr has no --version flag; verify the binary runs and produces expected output
-    python3 ${./check-tuicr.py} $out/bin/tuicr
+
+    # tuicr is a TUI program; run it inside a pseudo-TTY and quit immediately.
+    tmpdir="$(mktemp -d)"
+    trap 'rm -rf "$tmpdir"' EXIT
+    cd "$tmpdir"
+
+    git init --quiet
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "initial content" > test.txt
+    git add test.txt
+    git commit -m initial --quiet
+
+    echo "modified content" > test.txt
+
+    printf 'q' | timeout 10 script -q -c "$out/bin/tuicr" /dev/null >/dev/null
+
     runHook postInstallCheck
   '';
 

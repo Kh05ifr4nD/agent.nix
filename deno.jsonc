@@ -1,0 +1,45 @@
+{
+  "fmt": {
+    "useTabs": false,
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "exclude": [
+      ".opencode/**",
+      "**/*.md",
+      "**/package-lock.json"
+    ]
+  },
+  "lint": {
+    "exclude": [
+      ".opencode/**"
+    ],
+    "rules": {
+      "tags": [
+        "recommended"
+      ],
+      "include": [
+        "no-explicit-any"
+      ]
+    }
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "useUnknownInCatchVariables": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true
+  },
+  "tasks": {
+    "fmt": "deno fmt .github/actions scripts packages",
+    "fmt:check": "deno fmt --check .github/actions scripts packages",
+    "lint": "deno lint .github/actions scripts packages",
+    "typecheck": "deno check scripts/denoCheck.ts",
+    "check": "deno task fmt:check && deno task lint && deno task typecheck"
+  }
+}

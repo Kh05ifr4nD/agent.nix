@@ -1,37 +1,54 @@
+import { assertRecord, assertString } from "../../scripts/updater/assert.ts";
+import { runCapture } from "../../scripts/updater/command.ts";
+
 type MatrixItemType = "package" | "flake-input";
 
-type MatrixItem = {
+type MatrixItem = Readonly<{
   type: MatrixItemType;
   name: string;
-  current_version: string;
-};
+  currentVersion: string;
+}>;
 
-type Matrix = {
+type Matrix = Readonly<{
   include: MatrixItem[];
-};
+}>;
 
 function getEnv(name: string, fallback = ""): string {
   return Deno.env.get(name) ?? fallback;
 }
 
-async function runCapture(
-  command: string,
-  args: string[],
-  opts: { env?: Record<string, string> } = {},
-): Promise<{ code: number; stdout: string; stderr: string }> {
-  const output = await new Deno.Command(command, {
-    args,
-    stdout: "piped",
-    stderr: "piped",
-    env: opts.env,
-  }).output();
+function parseVersions(data: unknown, context: string): Record<string, string | null> {
+  assertRecord(data, `${context}: expected object`);
+  const result: Record<string, string | null> = {};
+  for (const [name, value] of Object.entries(data)) {
+    if (value === null) {
+      result[name] = null;
+      continue;
+    }
+    assertString(value, `${context}[${name}]: expected string or null`);
+    result[name] = value;
+  }
+  return result;
+}
 
-  const decoder = new TextDecoder();
-  return {
-    code: output.code,
-    stdout: decoder.decode(output.stdout),
-    stderr: decoder.decode(output.stderr),
-  };
+function parseFlakeLockNodes(lockData: unknown): Record<string, unknown> {
+  assertRecord(lockData, "flake.lock: expected object");
+  const nodes = lockData["nodes"];
+  assertRecord(nodes, "flake.lock.nodes: expected object");
+  return nodes;
+}
+
+function readLockedRev(node: unknown, context: string): string {
+  if (node === null || node === undefined) return "unknown";
+  assertRecord(node, `${context}: expected object`);
+
+  const locked = node["locked"];
+  if (locked === null || locked === undefined) return "unknown";
+  assertRecord(locked, `${context}.locked: expected object`);
+
+  const rev = locked["rev"];
+  if (typeof rev !== "string" || !rev) return "unknown";
+  return rev.slice(0, 8);
 }
 
 async function discoverPackages(
@@ -53,7 +70,7 @@ async function discoverPackages(
       flake = builtins.getFlake (toString ./.);
       pkgs = flake.packages.\${config.system};
       getVersion = name:
-        if pkgs ? \${name} && pkgs.\${name} ? version
+        if builtins.hasAttr name pkgs && pkgs.\${name} ? version
         then { inherit name; value = pkgs.\${name}.version; }
         else null;
     in
@@ -80,13 +97,13 @@ async function discoverPackages(
     return items;
   }
 
-  const versions: Record<string, string | null> = JSON.parse(result.stdout);
-  const names = Object.keys(versions).sort();
+  const parsedVersions: unknown = JSON.parse(result.stdout);
+  const versions = parseVersions(parsedVersions, "nix eval versions");
+  const entries = Object.entries(versions).sort(([a], [b]) => a.localeCompare(b));
 
-  for (const name of names) {
-    const version = versions[name];
+  for (const [name, version] of entries) {
     if (version !== null) {
-      items.push({ type: "package", name, current_version: version });
+      items.push({ type: "package", name, currentVersion: version });
     } else if (!packagesFilter) {
       console.log(`Skipping ${name} (no version attribute)`);
     }
@@ -116,18 +133,18 @@ async function discoverFlakeInputs(inputsFilter: string | undefined): Promise<Ma
     return items;
   }
 
-  const lockData = JSON.parse(await Deno.readTextFile("flake.lock"));
-  const nodes: Record<string, unknown> = lockData?.nodes ?? {};
+  const lockText = await Deno.readTextFile("flake.lock");
+  const lockData: unknown = JSON.parse(lockText);
+  const nodes = parseFlakeLockNodes(lockData);
 
   const inputNames = inputsFilter
     ? inputsFilter.split(/\s+/).filter(Boolean)
     : Object.keys(nodes).filter((k) => k !== "root").sort();
 
   for (const inputName of inputNames) {
-    const node = nodes[inputName] as { locked?: { rev?: string } } | undefined;
-    if (!node) continue;
-    const rev = (node.locked?.rev ?? "unknown").slice(0, 8);
-    items.push({ type: "flake-input", name: inputName, current_version: rev });
+    const node = nodes[inputName];
+    const rev = readLockedRev(node, `flake.lock.nodes.${inputName}`);
+    items.push({ type: "flake-input", name: inputName, currentVersion: rev });
   }
 
   return items;
@@ -186,4 +203,3 @@ async function main(): Promise<void> {
 if (import.meta.main) {
   await main();
 }
-

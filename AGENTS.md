@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 
 - Root: `flake.nix`, `flake.lock`, `devshell.nix`, `README.md`.
-- Packages live under `packages/<tool>/` with `package.nix`, `default.nix`, optional `update.py`, and lockfiles when needed.
+- Packages live under `packages/<tool>/` with `package.nix`, `default.nix`, optional `update.ts`, and lockfiles when needed.
 - Formatting config: `packages/formatter/treefmt.nix`.
 - Utilities and docs: `scripts/`, `docs/`, `.github/`.
 
@@ -14,14 +14,14 @@
 - Run without installing: `nix run .#<package> -- --help`.
 - Repo checks (builds + lints): `nix flake check`.
 - Format everything: `nix fmt`.
-- Regenerate README package section: `./scripts/generate-package-docs.py`.
+- Regenerate README package section: `nix develop --accept-flake-config -c deno run -A scripts/generatePackageDocs.ts`.
 
 ## Coding Style & Naming Conventions
 
 - Indentation: 2 spaces; avoid tabs.
 - Nix: small, composable derivations; prefer `buildNpmPackage`/`rustPlatform.buildRustPackage`/`stdenv.mkDerivation` as in existing packages.
-- File layout per package: `package.nix` (definition), `default.nix` (wrapper), `update.py` (optional custom updater), `nix-update-args` (optional nix-update flags).
-- Tools via treefmt: nixfmt, deadnix, shfmt, shellcheck, mdformat, yamlfmt, taplo. Always run `nix fmt` before committing.
+- File layout per package: `package.nix` (definition), `default.nix` (wrapper), `update.ts` (optional custom updater), `nixUpdateArgs` (optional nix-update flags).
+- Tools via treefmt: nixfmt, deadnix, deno fmt, shfmt, shellcheck, mdformat, yamlfmt, taplo. Always run `nix fmt` before committing.
 
 ### Updating Packages
 
@@ -57,13 +57,13 @@ buildGoModule rec {
 1. Running `nix run nixpkgs#nix-update -- --flake <package>`
 1. Confirming version and hashes are updated correctly
 
-**Only use custom `update.py` scripts when nix-update cannot handle the package**, such as:
+**Only use custom `update.ts` scripts when nix-update cannot handle the package**, such as:
 
 - Packages with complex version schemes nix-update cannot parse
 - Sources not supported by nix-update (non-GitHub, custom APIs)
 - Packages requiring special hash calculation logic
 
-Custom updaters should use the `scripts/updater/` library. See existing `update.py` files for examples.
+Custom updaters should use the `scripts/updater/` library. See existing `update.ts` files for examples.
 
 ### Package Metadata Requirements
 
@@ -233,12 +233,12 @@ fi
    - Use `autoPatchelfHook` on Linux to handle dynamic library dependencies
    - Common missing libraries: `gcc-unwrapped.lib` for libgcc_s.so.1
 
-1. **Update scripts**: Follow shellcheck recommendations - declare and assign variables separately to avoid masking return values.
+1. **Update scripts**: Keep Deno scripts strict (no `any`), and prefer small composable modules under `scripts/updater/`.
 
-1. **Custom nix-update arguments**: For packages that need special nix-update flags (e.g., filtering out nightly releases), create a `nix-update-args` file with one argument per line:
+1. **Custom nix-update arguments**: For packages that need special nix-update flags (e.g., filtering out nightly releases), create a `nixUpdateArgs` file with one argument per line:
 
    ```text
-   # packages/qwen-code/nix-update-args
+   # packages/qwen-code/nixUpdateArgs
    --use-github-releases
    --version-regex
    ^v([0-9]+\.[0-9]+\.[0-9]+)$
