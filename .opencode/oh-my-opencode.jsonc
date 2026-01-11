@@ -1,0 +1,179 @@
+{
+    "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
+
+    // Use oh-my-opencode built-in Google auth helper.
+    // If you use `opencode-antigravity-auth`, set this to false and override Google models accordingly.
+    "google_auth": false,
+
+    // Disable auto-update behavior (recommended for reproducible setups).
+    "auto_update": false,
+
+    // Sisyphus orchestration (the “main agent”) controls whether OpenCode defaults get replaced.
+    // If you want OpenCode's default agent/model behavior, set `disabled: true`.
+    "sisyphus_agent": {
+        "disabled": false,
+        "default_builder_enabled": true,
+        "planner_enabled": true,
+        "replace_plan": false,
+    },
+
+    // Built-in agents (primary + subagents). These names must match exactly.
+    "agents": {
+        // Main orchestrator
+        "Sisyphus": {
+            "mode": "primary",
+            "model": "openai/gpt-5.2",
+            "description": "Orchestration and global planning",
+        },
+
+        // SDK limitation shims (optional, controlled by `sisyphus_agent.*`)
+        "OpenCode-Builder": {
+            "mode": "primary",
+            "model": "openai/gpt-5.2",
+            "description": "High-intensity implementation and build tasks",
+        },
+        "Planner-Sisyphus": {
+            "mode": "primary",
+            "model": "anthropic/claude-opus-4-5",
+            "description": "Planning and task decomposition",
+        },
+
+        // Specialized subagents
+        "oracle": {
+            "mode": "subagent",
+            "model": "openai/gpt-5.2",
+            "description": "Hard problems: architecture, debugging, code review, tricky implementation",
+        },
+        "librarian": {
+            "mode": "subagent",
+            "model": "google/gemini-3-flash-preview",
+            "description": "Docs lookup, quick research, and lightweight helpers",
+        },
+        "explore": {
+            "mode": "subagent",
+            "model": "anthropic/claude-opus-4-5",
+            "description": "Fast codebase exploration and pattern matching",
+        },
+        "frontend-ui-ux-engineer": {
+            "mode": "subagent",
+            "model": "google/gemini-3-flash-preview",
+            "description": "Frontend UI/UX implementation",
+        },
+        "document-writer": {
+            "mode": "subagent",
+            "model": "google/gemini-3-flash-preview",
+            "description": "Technical writing and documentation",
+        },
+        "multimodal-looker": {
+            "mode": "subagent",
+            "model": "google/gemini-3-flash-preview",
+            "description": "PDF/image/diagram analysis",
+        },
+
+        // Keep OpenCode default agent names pinned too (in case they're used directly).
+        "build": {
+            "mode": "primary",
+            "model": "openai/gpt-5.2",
+            "description": "OpenCode default build agent",
+        },
+        "plan": {
+            "mode": "primary",
+            "model": "anthropic/claude-opus-4-5",
+            "description": "OpenCode default plan agent",
+        },
+    },
+
+    // Optional: explicitly disable agents by name.
+    "disabled_agents": [],
+
+    // Optional: disable built-in commands (tooling entrypoints) by name.
+    "disabled_commands": [],
+
+    // Optional: disable built-in hooks (see README for the full list).
+    "disabled_hooks": [
+        // "auto-update-checker",
+        // "startup-toast"
+    ],
+
+    // Optional: disable built-in MCP servers.
+    "disabled_mcps": [
+        // "context7",
+        // "grep_app"
+    ],
+
+    // Optional: disable built-in skills.
+    "disabled_skills": [
+        // "playwright"
+    ],
+
+    // Claude Code compatibility toggles (omit this block to enable everything by default).
+    "claude_code": {
+        "mcp": true,
+        "commands": true,
+        "skills": true,
+        "agents": true,
+        "hooks": true,
+        "plugins": true,
+        "plugins_override": {},
+    },
+
+    // Comment checker (leave empty to use defaults).
+    "comment_checker": {},
+
+    // Ralph loop (off by default).
+    "ralph_loop": {
+        "enabled": true,
+        "default_max_iterations": 10,
+        "state_dir": ".opencode/ralph-loop",
+    },
+
+    // Extra skills configuration (optional). Leaving as an empty object keeps defaults.
+    "skills": {},
+
+    // LSP server overrides (see README). Leaving empty uses OpenCode defaults.
+    "lsp": {
+        // "typescript-language-server": {
+        //   "command": ["typescript-language-server", "--stdio"],
+        //   "extensions": [".ts", ".tsx"],
+        //   "priority": 10
+        // }
+    },
+
+    // Experimental knobs (use with caution).
+    "experimental": {
+        // Unattended mode: keep sessions moving without manual intervention.
+        "auto_resume": true,
+
+        // Keep Claude sessions from hitting hard token limits.
+        "preemptive_compaction": true,
+        "preemptive_compaction_threshold": 0.6,
+
+        // Only truncate noisy/high-risk tool outputs (default whitelist).
+        "truncate_all_tool_outputs": false,
+
+        // Run Dynamic Context Pruning (DCP) first on token-limit recovery.
+        "dcp_for_compaction": true,
+        "dynamic_context_pruning": {
+            "enabled": true,
+            "notification": "minimal",
+            "protected_tools": [
+                "task",
+                "todowrite",
+                "todoread",
+                "lsp_rename",
+                "lsp_code_action_resolve",
+                "session_read",
+                "session_write",
+                "session_search",
+            ],
+            "strategies": {
+                "deduplication": { "enabled": true },
+                "supersede_writes": { "enabled": true, "aggressive": false },
+                "purge_errors": { "enabled": true, "turns": 5 },
+            },
+        },
+
+        // NOTE: currently not consumed by runtime logic; keep for forward compatibility.
+        "aggressive_truncation": false,
+    },
+}

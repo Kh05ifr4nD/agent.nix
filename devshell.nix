@@ -15,11 +15,16 @@ pkgs.mkShellNoCC {
     pkgs.nodejs
     pkgs.python3
 
+    # Agents
+    perSystem.self.opencode
+    perSystem.self."oh-my-opencode"
+
     # Formatter
     perSystem.self.formatter
   ];
 
   shellHook = ''
-    export PRJ_ROOT=$PWD
+    export PRJ_ROOT="$PWD"
+    export OPENCODE_CONFIG_DIR="$PRJ_ROOT/.opencode"
   '';
 }

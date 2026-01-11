@@ -26,6 +26,10 @@ stdenv.mkDerivation {
 
   dontBuild = true;
 
+  patches = [
+    ./agentNix.patch
+  ];
+
   installPhase = ''
     runHook preInstall
 

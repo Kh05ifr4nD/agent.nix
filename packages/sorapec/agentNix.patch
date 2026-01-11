@@ -1,0 +1,28 @@
+diff --git a/src/core/templates/opencode-skill-template.ts b/src/core/templates/opencode-skill-template.ts
+--- a/src/core/templates/opencode-skill-template.ts
++++ b/src/core/templates/opencode-skill-template.ts
+@@
+ export const opencodeSkillTemplate = `---
+ name: sorapec
+ description: Sorapec CLI workflow for SDD and runtime runs
+ ---
+ 
+ # Sorapec
+ 
+ This skill is the operational manual for Sorapec.
+ 
+ - \`AGENTS.md\` defines semantic rules and invariants.
+ - This skill lists concrete commands that execute those rules.
+ - Keep the two consistent. If they ever disagree, follow \`AGENTS.md\`.
+ 
++## agentNix (Nix flake)
++
++If \`sorapec\` is not available in \`PATH\`, run it via agentNix:
++
++\`\`\`bash
++nix run github:Kh05ifr4nD/agentNix#sorapec -- <args>
++\`\`\`
++
+ ## Spec and Change Workflow
+ 
+ Model:
