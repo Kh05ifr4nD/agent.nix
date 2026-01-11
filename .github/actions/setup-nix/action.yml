@@ -1,0 +1,16 @@
+name: Setup Nix
+description: Install Nix for flake builds
+inputs:
+  github_token:
+    description: GitHub token used for fetching flake inputs
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Setup Nix
+      uses: cachix/install-nix-action@v31
+      with:
+        github_access_token: ${{ inputs.github_token }}
+        extra_nix_config: |
+          experimental-features = nix-command flakes

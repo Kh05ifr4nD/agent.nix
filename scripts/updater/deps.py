@@ -29,7 +29,7 @@ def calculate_dependency_hash(
     5. Restores original hash on failure
 
     Args:
-        package_attr: Nix package attribute (e.g., ".#codex", ".#claude-code")
+        package_attr: Nix package attribute (e.g., ".#codex", ".#opencode")
         hash_key: Key in data dict for the hash (e.g., "cargoHash", "vendorHash")
         hashes_file: Path to hashes.json file
         data: Dictionary containing package data

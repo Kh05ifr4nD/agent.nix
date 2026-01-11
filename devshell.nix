@@ -6,12 +6,14 @@ pkgs.mkShellNoCC {
     pkgs.coreutils
     pkgs.curl
     pkgs.gh
+    pkgs.git
     pkgs.gnugrep
     pkgs.gnused
     pkgs.jq
     pkgs.nix-prefetch-scripts
     pkgs.nix-update
     pkgs.nodejs
+    pkgs.python3
 
     # Formatter
     perSystem.self.formatter

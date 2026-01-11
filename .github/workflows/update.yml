@@ -6,24 +6,79 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description: 'Specific packages to update (space-separated, empty for all)'
+        description: Space-separated list of packages (empty for all)
         required: false
         default: ''
-      inputs:
-        description: 'Specific flake inputs to update (space-separated, empty for all)'
+      flake_inputs:
+        description: Space-separated list of flake inputs (empty for all)
         required: false
         default: ''
+      auto_merge:
+        description: Enable auto-merge for created PRs
+        required: false
+        default: 'true'
+      system:
+        description: Nix system for version evaluation
+        required: false
+        default: x86_64-linux
+concurrency:
+  group: update-dependencies
+  cancel-in-progress: false
 jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+      has_items: ${{ steps.build-matrix.outputs.has_items }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-nix
+        with:
+          github_token: ${{ github.token }}
+      - name: Build update matrix
+        id: build-matrix
+        env:
+          PACKAGES: ${{ github.event.inputs.packages || '' }}
+          INPUTS: ${{ github.event.inputs.flake_inputs || '' }}
+          SYSTEM: ${{ github.event.inputs.system || 'x86_64-linux' }}
+        run: python3 .github/actions/discovery.py
   update:
-    uses: ./.github/workflows/update-flake.yml
-    with:
-      packages: ${{ github.event.inputs.packages }}
-      inputs: ${{ github.event.inputs.inputs }}
-      pr-labels: 'dependencies,automated'
-      auto-merge: true
-    secrets:
-      APP_ID: ${{ secrets.APP_ID }}
-      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+    needs: discover
+    if: needs.discover.outputs.has_items == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
     permissions:
       contents: write
       pull-requests: write
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+      - uses: ./.github/actions/setup-nix
+        with:
+          github_token: ${{ steps.app-token.outputs.token }}
+      - name: Set up git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Update and open PR (if needed)
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_LABELS: dependencies,automated
+          AUTO_MERGE: ${{ github.event.inputs.auto_merge || 'true' }}
+          SYSTEM: ${{ github.event.inputs.system || 'x86_64-linux' }}
+        run: |
+          nix develop -c .github/actions/update-item.sh \
+            "${{ matrix.type }}" \
+            "${{ matrix.name }}" \
+            "${{ matrix.current_version }}"

@@ -10,7 +10,7 @@
 ## Build, Test, and Development Commands
 
 - Enter dev shell: `nix develop`.
-- Build a package: `nix build --accept-flake-config .#<package>` (e.g., `nix build .#claude-code`).
+- Build a package: `nix build --accept-flake-config .#<package>` (e.g., `nix build .#codex`).
 - Run without installing: `nix run .#<package> -- --help`.
 - Repo checks (builds + lints): `nix flake check`.
 - Format everything: `nix fmt`.
@@ -202,7 +202,6 @@ nativeInstallCheckInputs = [ versionCheckHook ];
 ## Security & Configuration Tips
 
 - Some tools are unfree; enable unfree if needed in your Nix config.
-- Sandbox experiments: see `packages/claudebox/` for a confined execution wrapper.
 - Pin sources with hashes; avoid network access at build time.
 
 ## Installing Nix (Required for Package Testing)

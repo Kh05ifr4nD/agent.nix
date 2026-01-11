@@ -12,5 +12,8 @@ result-*
 .DS_Store
 Thumbs.db
 __pycache__
+.mypy_cache
+.ruff_cache
+.pytest_cache
 packages/wrapBuddy/compile_commands.json
 packages/wrapBuddy/.cache/clangd

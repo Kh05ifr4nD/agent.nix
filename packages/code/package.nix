@@ -68,7 +68,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   passthru.category = "AI Coding Agents";
 
   meta = {
-    description = "Fork of codex. Orchestrate agents from OpenAI, Claude, Gemini or any provider.";
+    description = "Fork of codex. Orchestrate agents from OpenAI, Gemini, and other providers.";
     homepage = "https://github.com/just-every/code/";
     changelog = "https://github.com/just-every/code/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.asl20;

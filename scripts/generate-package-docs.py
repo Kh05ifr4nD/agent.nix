@@ -2,6 +2,8 @@
 """Generate markdown documentation for all packages and update README.md."""
 
 import json
+import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -9,6 +11,38 @@ from pathlib import Path
 # Markers for the generated section in README.md
 BEGIN_MARKER = "<!-- BEGIN GENERATED PACKAGE DOCS -->"
 END_MARKER = "<!-- END GENERATED PACKAGE DOCS -->"
+
+
+def get_flake_ref() -> str:
+    """Return the flake reference to use in generated usage snippets."""
+    override = os.environ.get("PACKAGE_DOCS_FLAKE")
+    if override:
+        return override
+
+    github_repo = os.environ.get("GITHUB_REPOSITORY")
+    if github_repo:
+        return f"github:{github_repo}"
+
+    try:
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return "."
+
+    url = result.stdout.strip()
+    if "github.com" not in url:
+        return "."
+
+    match = re.search(r"[:/]([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?$", url)
+    if not match:
+        return "."
+
+    owner, repo = match.group(1), match.group(2)
+    return f"github:{owner}/{repo}"
 
 
 def get_all_packages_metadata() -> dict[str, dict[str, str | bool | None]]:
@@ -53,9 +87,8 @@ def generate_package_doc(package: str, metadata: dict[str, str | bool | None]) -
     if homepage:
         lines.append(f"- **Homepage**: {homepage}")
 
-    lines.append(
-        f"- **Usage**: `nix run github:numtide/llm-agents.nix#{package} -- --help`"
-    )
+    flake_ref = get_flake_ref()
+    lines.append(f"- **Usage**: `nix run {flake_ref}#{package} -- --help`")
     lines.append(
         f"- **Nix**: [packages/{package}/package.nix](packages/{package}/package.nix)"
     )
@@ -76,7 +109,6 @@ def generate_package_doc(package: str, metadata: dict[str, str | bool | None]) -
 # Define category order for display
 CATEGORY_ORDER = [
     "AI Coding Agents",
-    "Claude Code Ecosystem",
     "Codex Ecosystem",
     "Workflow & Project Management",
     "Code Review",

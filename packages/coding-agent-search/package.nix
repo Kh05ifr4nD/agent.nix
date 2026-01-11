@@ -78,8 +78,8 @@ rustPlatform.buildRustPackage rec {
   meta = with lib; {
     description = "Unified, high-performance TUI to index and search your local coding agent history";
     longDescription = ''
-      coding-agent-search (cass) aggregates sessions from Codex, Claude Code,
-      Gemini CLI, Cline, OpenCode, Amp, Cursor, ChatGPT, Aider, and Pi-Agent
+      coding-agent-search (cass) aggregates sessions from Codex, Gemini CLI,
+      Cline, OpenCode, ChatGPT, Aider, and Pi-Agent
       into a single, searchable timeline with instant full-text search.
 
       This build includes ONNX Runtime for optional semantic search functionality.

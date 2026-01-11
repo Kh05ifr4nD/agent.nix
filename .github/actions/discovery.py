@@ -30,16 +30,6 @@ class MatrixItem:
         }
 
 
-def run_nix(args: list[str]) -> subprocess.CompletedProcess[str]:
-    """Run a nix command and return the result."""
-    return subprocess.run(
-        ["nix", *args],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
 def discover_packages(packages_filter: str | None, system: str) -> list[MatrixItem]:
     """Discover packages with version attributes in a single nix eval."""
     items: list[MatrixItem] = []
@@ -165,11 +155,11 @@ def main() -> None:
     matrix: dict[str, list[dict[str, str]]]
     if not matrix_items:
         matrix = {"include": []}
-        has_updates = False
+        has_items = False
         print("No items to update")
     else:
         matrix = {"include": [item.to_dict() for item in matrix_items]}
-        has_updates = True
+        has_items = True
         print(f"Found {len(matrix_items)} item(s) to update")
 
     matrix_json = json.dumps(matrix, separators=(",", ":"))
@@ -178,13 +168,13 @@ def main() -> None:
     if github_output:
         with Path(github_output).open("a") as f:
             f.write(f"matrix={matrix_json}\n")
-            f.write(f"has-updates={str(has_updates).lower()}\n")
+            f.write(f"has_items={str(has_items).lower()}\n")
     else:
         # Local testing output
         print()
         print("=== GitHub Actions Output Format ===")
         print(f"matrix={matrix_json}")
-        print(f"has-updates={str(has_updates).lower()}")
+        print(f"has_items={str(has_items).lower()}")
 
         print()
         print("=== Pretty-printed Matrix ===")
@@ -192,7 +182,7 @@ def main() -> None:
 
         print()
         print("=== Summary ===")
-        if has_updates:
+        if has_items:
             print("Items by type:")
             type_counts: dict[str, int] = {}
             for item in matrix_items:

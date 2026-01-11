@@ -6,7 +6,7 @@ body:
     id: package
     attributes:
       label: Package
-      placeholder: e.g., claude-code
+      placeholder: e.g., codex
     validations:
       required: true
   - type: dropdown

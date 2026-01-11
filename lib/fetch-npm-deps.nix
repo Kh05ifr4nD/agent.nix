@@ -4,7 +4,6 @@
 # TODO: Remove this once the upstream PR is merged into nixpkgs.
 #
 # Pin to nodejs_24 to ensure consistent npmDepsHash across nixpkgs versions.
-# See: https://github.com/numtide/llm-agents.nix/issues/1644
 {
   lib,
   stdenv,

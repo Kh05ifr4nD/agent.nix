@@ -1,0 +1,18 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+jobs:
+  flake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-nix
+        with:
+          github_token: ${{ github.token }}
+      - name: Nix flake check (eval only)
+        run: nix flake check --no-build --accept-flake-config
+      - name: Format check
+        run: nix build --accept-flake-config --no-link .#checks.x86_64-linux.pkgs-formatter-check
