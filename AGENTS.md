@@ -93,12 +93,11 @@ meta = { ... };
 
 Available categories (in display order):
 
-- **AI Coding Agents** - Main AI coding assistants (claude-code, codex, gemini-cli, etc.)
-- **Claude Code Ecosystem** - Tools specifically for Claude Code (claudebox, ccusage, catnip, etc.)
+- **AI Coding Agents** - Main AI coding assistants (codex, gemini-cli, opencode, qwen-code, etc.)
 - **Codex Ecosystem** - Tools specifically for OpenAI Codex (codex-acp, ccusage-codex)
-- **Workflow & Project Management** - Project/spec management tools (backlog-md, beads, openspec, spec-kit)
+- **Workflow & Project Management** - Project/spec management tools (backlog-md, beads, spec-kit, sorapec)
 - **Code Review** - Code review tools (coderabbit-cli, tuicr)
-- **Utilities** - Other useful tools (coding-agent-search, handy, happy-coder, openskills)
+- **Utilities** - Other useful tools (catnip, coding-agent-search, handy, openskills)
 
 #### Custom Maintainers
 
